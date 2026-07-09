@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-500: #dc2626; /* red-600 */
+  --color-primary-600: #b91c1c; /* red-700 */
+}
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: #111827; /* gray-900 */
+      --foreground: #f9fafb; /* gray-50 */
+    }
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
