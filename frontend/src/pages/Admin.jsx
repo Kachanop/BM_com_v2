@@ -1,6 +1,70 @@
-import { BarChart3, Users, Package, ShoppingBag } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { BarChart3, Users, Package, ShoppingBag, Lock, LogIn } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export default function Admin() {
+  const [session, setSession] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAdmin();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      checkAdmin();
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkAdmin = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setSession(session);
+    
+    if (session?.user?.id) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+        
+      setIsAdmin(data?.role === 'admin');
+    } else {
+      setIsAdmin(false);
+    }
+    setLoading(false);
+  };
+
+  if (loading) {
+    return <div className="text-center py-20">กำลังตรวจสอบสิทธิ์...</div>;
+  }
+
+  if (!session) {
+    return (
+      <div className="max-w-md mx-auto mt-20">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 text-center">
+          <div className="bg-red-100 dark:bg-red-900/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-8 h-8 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold">สงวนสิทธิ์เฉพาะผู้ดูแลระบบ</h1>
+          <p className="text-gray-500 mt-2 mb-6">กรุณาเข้าสู่ระบบผ่านปุ่มมุมขวาบน</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="max-w-md mx-auto mt-20">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 text-center">
+          <div className="bg-red-100 dark:bg-red-900/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-8 h-8 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold">ไม่มีสิทธิ์เข้าถึง</h1>
+          <p className="text-gray-500 mt-2">บัญชีของคุณไม่มีสิทธิ์ในการเข้าถึงหน้านี้</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-4">
@@ -14,7 +78,7 @@ export default function Admin() {
           </div>
           <div>
             <p className="text-sm text-gray-500">ยอดขายวันนี้</p>
-            <p className="text-2xl font-bold">฿125,400</p>
+            <p className="text-2xl font-bold">฿0</p>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4">
@@ -23,7 +87,7 @@ export default function Admin() {
           </div>
           <div>
             <p className="text-sm text-gray-500">คำสั่งซื้อ</p>
-            <p className="text-2xl font-bold">8 รายการ</p>
+            <p className="text-2xl font-bold">0 รายการ</p>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4">
@@ -32,7 +96,7 @@ export default function Admin() {
           </div>
           <div>
             <p className="text-sm text-gray-500">สมาชิกรวม</p>
-            <p className="text-2xl font-bold">1,204 คน</p>
+            <p className="text-2xl font-bold">0 คน</p>
           </div>
         </div>
       </div>
@@ -42,19 +106,8 @@ export default function Admin() {
           <BarChart3 className="w-5 h-5 text-red-600" />
           สถิติเซ็ตคอมพิวเตอร์ที่ขายดีที่สุด
         </h2>
-        <div className="h-64 flex items-end justify-around gap-4 pt-8 border-b border-gray-200 dark:border-gray-700">
-          <div className="w-1/4 bg-red-200 dark:bg-red-900/40 h-[60%] rounded-t-lg relative group transition-all hover:bg-red-300">
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 font-bold">35%</div>
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-sm whitespace-nowrap text-gray-500">Beginner</div>
-          </div>
-          <div className="w-1/4 bg-red-400 dark:bg-red-700/60 h-[90%] rounded-t-lg relative group transition-all hover:bg-red-500">
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 font-bold">55%</div>
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-sm whitespace-nowrap text-gray-500">Gamer</div>
-          </div>
-          <div className="w-1/4 bg-red-100 dark:bg-red-950/40 h-[20%] rounded-t-lg relative group transition-all hover:bg-red-200">
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 font-bold">10%</div>
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-sm whitespace-nowrap text-gray-500">Pro Streamer</div>
-          </div>
+        <div className="h-64 flex items-center justify-center border-b border-gray-200 dark:border-gray-700">
+          <p className="text-gray-500">ยังไม่มีข้อมูลสถิติ</p>
         </div>
       </div>
     </div>

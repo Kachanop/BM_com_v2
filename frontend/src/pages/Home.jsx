@@ -8,21 +8,32 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchProducts() {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('id', { ascending: true });
-      
-      if (error) {
-        console.error('Error fetching products:', error);
-      } else {
-        setProducts(data || []);
+    // Mock 3 computer sets
+    const mockProducts = [
+      {
+        id: 1,
+        name: "เซ็ตสุดคุ้ม Beginner",
+        description: "เหมาะสำหรับทำงานทั่วไป พิมพ์งาน ดูหนัง ฟังเพลง เล่นเกมเบาๆ",
+        price: 15900,
+        image_url: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: 2,
+        name: "เซ็ต Gamer ขั้นเทพ",
+        description: "เล่นเกมยอดฮิตได้ลื่นไหล ไม่ว่าจะเป็น Valorant, GTA V, หรือ PUBG",
+        price: 25900,
+        image_url: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: 3,
+        name: "เซ็ต Pro Streamer",
+        description: "สเปคแรง ตัดต่อวิดีโอ 4K และสตรีมเกมได้แบบไม่มีสะดุด",
+        price: 45900,
+        image_url: "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=600&q=80"
       }
-      setLoading(false);
-    }
-
-    fetchProducts();
+    ];
+    setProducts(mockProducts);
+    setLoading(false);
   }, []);
   return (
     <div className="space-y-8">
