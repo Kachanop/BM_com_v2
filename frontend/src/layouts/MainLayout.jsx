@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { ShoppingCart, Monitor, LogIn, LogOut, User } from 'lucide-react';
 import AuthModal from '../components/AuthModal';
+import ProfileEditModal from '../components/ProfileEditModal';
 import { supabase } from '../lib/supabase';
 
 export default function MainLayout() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [session, setSession] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
 
@@ -30,11 +32,13 @@ export default function MainLayout() {
       setUserProfile(null);
       return;
     }
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    const { data } = await supabase.from('profiles').select('full_name, role').eq('id', userId).single();
     if (data) {
       setUserProfile(data);
     }
   };
+
+  const isAdmin = userProfile?.role === 'admin';
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -53,17 +57,23 @@ export default function MainLayout() {
             <nav className="flex gap-6 items-center">
               <Link to="/" className="text-gray-600 dark:text-gray-300 hover:text-red-600 font-medium">หน้าหลัก</Link>
               <Link to="/history" className="text-gray-600 dark:text-gray-300 hover:text-red-600 font-medium">ประวัติการสั่งซื้อ</Link>
-              <Link to="/admin" className="text-gray-600 dark:text-gray-300 hover:text-red-600 font-medium">Admin</Link>
+              {isAdmin && (
+                <Link to="/admin" className="text-gray-600 dark:text-gray-300 hover:text-red-600 font-medium">Admin</Link>
+              )}
               <Link to="/cart" className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-red-600">
                 <ShoppingCart className="w-5 h-5" />
                 <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">0</span>
               </Link>
               {session ? (
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full">
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileModalOpen(true)}
+                    className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700/80 transition-colors"
+                  >
                     <User className="w-4 h-4" />
                     <span className="max-w-[120px] truncate">{userProfile?.full_name || session.user.email}</span>
-                  </div>
+                  </button>
                   <button 
                     onClick={handleLogout}
                     className="flex items-center gap-2 text-gray-500 hover:text-red-600 font-medium transition-colors"
@@ -98,6 +108,13 @@ export default function MainLayout() {
         </div>
       </footer>
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <ProfileEditModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        session={session}
+        userProfile={userProfile}
+        onProfileUpdated={(updatedProfile) => setUserProfile(updatedProfile)}
+      />
     </div>
   );
 }
