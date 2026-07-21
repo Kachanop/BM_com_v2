@@ -87,7 +87,7 @@ export default function ProfileEditModal({ isOpen, onClose, session, userProfile
           <h2 className="text-2xl font-bold mb-6">แก้ไขข้อมูลของคุณ</h2>
 
           {error && (
-            <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600">{error}</div>
+            <div className="mb-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 p-3 text-sm text-blue-600">{error}</div>
           )}
           {success && (
             <div className="mb-4 rounded-lg bg-green-50 dark:bg-green-900/20 p-3 text-sm text-green-600">{success}</div>
@@ -101,7 +101,7 @@ export default function ProfileEditModal({ isOpen, onClose, session, userProfile
                 name="full_name"
                 value={formData.full_name}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-600 dark:border-gray-700 dark:bg-gray-900"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-gray-700 dark:bg-gray-900"
                 placeholder="สมชาย ใจดี"
               />
             </div>
@@ -113,7 +113,7 @@ export default function ProfileEditModal({ isOpen, onClose, session, userProfile
                 value={formData.address}
                 onChange={handleChange}
                 rows="3"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-600 dark:border-gray-700 dark:bg-gray-900"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-gray-700 dark:bg-gray-900"
                 placeholder="บ้านเลขที่ ซอย ถนน จังหวัด"
               />
             </div>
@@ -125,7 +125,7 @@ export default function ProfileEditModal({ isOpen, onClose, session, userProfile
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-600 dark:border-gray-700 dark:bg-gray-900"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-gray-700 dark:bg-gray-900"
                 placeholder="0812345678"
               />
             </div>
@@ -136,7 +136,7 @@ export default function ProfileEditModal({ isOpen, onClose, session, userProfile
                 name="payment_method"
                 value={formData.payment_method}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-600 dark:border-gray-700 dark:bg-gray-900"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-gray-700 dark:bg-gray-900"
               >
                 <option value="">เลือกช่องทางการชำระเงิน</option>
                 <option value="cash">เก็บเงินปลายทาง</option>
@@ -149,7 +149,7 @@ export default function ProfileEditModal({ isOpen, onClose, session, userProfile
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? (
                 <>

@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary-500: #dc2626; /* red-600 */
-  --color-primary-600: #b91c1c; /* red-700 */
+  --color-primary-500: #2563eb; /* blue-600 */
+  --color-primary-600: #1e40af; /* blue-800 / navy */
 }
 
 @layer base {
@@ -12,7 +12,7 @@
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --background: #111827; /* gray-900 */
+      --background: #0b1220; /* darker navy */
       --foreground: #f9fafb; /* gray-50 */
     }
   }
