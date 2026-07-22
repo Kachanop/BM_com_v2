@@ -1,12 +1,27 @@
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Sparkles, ShieldCheck, Headphones } from 'lucide-react';
-import { useContext } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { CartContext } from '../lib/CartContext';
 import { useProducts } from '../hooks/useProducts';
+import { CATEGORIES } from '../lib/categories';
 
 export default function Home() {
   const { products, loading } = useProducts();
   const { addToCart } = useContext(CartContext);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  const filteredProducts = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return products.filter((product) => {
+      const matchesTerm =
+        !term ||
+        product.name?.toLowerCase().includes(term) ||
+        product.description?.toLowerCase().includes(term);
+      const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+      return matchesTerm && matchesCategory;
+    });
+  }, [products, searchTerm, selectedCategory]);
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-[32px] border border-blue-100 bg-white p-8 shadow-[0_20px_80px_-20px_rgba(37,99,235,0.18)] sm:p-10 lg:p-14">
@@ -97,15 +112,44 @@ export default function Home() {
           </div>
           <Link to="/cart" className="text-sm font-semibold text-blue-600 hover:text-blue-700">ดูทั้งหมด</Link>
         </div>
+
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="ค้นหาสินค้า..."
+            className="w-full rounded-full border border-gray-300 bg-white px-5 py-2.5 text-sm outline-none transition focus:border-blue-500 sm:max-w-xs"
+          />
+          <select
+            value={selectedCategory}
+            onChange={(event) => setSelectedCategory(event.target.value)}
+            className="w-full rounded-full border border-gray-300 bg-white px-5 py-2.5 text-sm outline-none transition focus:border-blue-500 sm:w-56"
+          >
+            <option value="all">ทุกหมวดหมู่</option>
+            {CATEGORIES.map((category) => (
+              <option key={category.value} value={category.value}>
+                {category.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {loading ? (
           <div className="rounded-3xl border border-dashed border-gray-300 bg-white/70 py-16 text-center text-gray-500">กำลังโหลดข้อมูลสินค้า...</div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-gray-300 bg-white/70 py-16 text-center text-gray-500">ไม่พบสินค้าที่ค้นหา</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <div key={product.id} className="group flex flex-col overflow-hidden rounded-[24px] border border-gray-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl">
-                <img src={product.image_url} alt={product.name} className="h-48 w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+                <Link to={`/product/${product.id}`} className="block">
+                  <img src={product.image_url} alt={product.name} className="h-48 w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+                </Link>
                 <div className="flex flex-1 flex-col p-5">
-                  <h3 className="text-xl font-bold text-gray-900">{product.name}</h3>
+                  <Link to={`/product/${product.id}`} className="hover:text-blue-600">
+                    <h3 className="text-xl font-bold text-gray-900">{product.name}</h3>
+                  </Link>
                   <p className="mt-2 flex-1 text-sm text-gray-500">
                     {product.description}
                   </p>
