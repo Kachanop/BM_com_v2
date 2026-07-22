@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BarChart3, Users, Package, ShoppingBag, Lock, ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useProducts } from '../hooks/useProducts';
+import { CATEGORIES } from '../lib/categories';
 
 const formatCurrency = (value) =>
   `฿${Number(value || 0).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -22,6 +23,7 @@ export default function Admin() {
   const [priceInput, setPriceInput] = useState('');
   const [descriptionInput, setDescriptionInput] = useState('');
   const [imageUrlInput, setImageUrlInput] = useState('');
+  const [categoryInput, setCategoryInput] = useState('general');
   const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export default function Admin() {
       setPriceInput(firstProduct.price?.toString() || '');
       setDescriptionInput(firstProduct.description || '');
       setImageUrlInput(firstProduct.image_url || '');
+      setCategoryInput(firstProduct.category || 'general');
     }
   }, [products, selectedProductId, isCreating]);
 
@@ -84,6 +87,7 @@ export default function Admin() {
     setPriceInput(product.price?.toString() || '');
     setDescriptionInput(product.description || '');
     setImageUrlInput(product.image_url || '');
+    setCategoryInput(product.category || 'general');
     setSaveMessage('');
   };
 
@@ -94,6 +98,7 @@ export default function Admin() {
     setPriceInput('');
     setDescriptionInput('');
     setImageUrlInput('');
+    setCategoryInput('general');
     setSaveMessage('');
   };
 
@@ -109,6 +114,7 @@ export default function Admin() {
         price: Number(priceInput),
         description: descriptionInput,
         image_url: imageUrlInput,
+        category: categoryInput,
       });
 
       if (error) {
@@ -129,6 +135,7 @@ export default function Admin() {
         price: Number(priceInput),
         description: descriptionInput,
         image_url: imageUrlInput,
+        category: categoryInput,
       })
       .eq("id", selectedProductId);
 
@@ -337,6 +344,20 @@ export default function Admin() {
                       placeholder="ราคา"
                       className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500"
                     />
+                  </label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    หมวดหมู่สินค้า
+                    <select
+                      value={categoryInput}
+                      onChange={(event) => setCategoryInput(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500"
+                    >
+                      {CATEGORIES.map((category) => (
+                        <option key={category.value} value={category.value}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                   <label className="block text-sm font-medium text-gray-700">
                     รายละเอียดสินค้า
