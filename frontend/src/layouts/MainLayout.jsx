@@ -42,8 +42,6 @@ export default function MainLayout() {
       .eq('id', userId)
       .maybeSingle();
 
-    console.debug('[MainLayout] fetchProfile fetched:', { userId, data, authUser });
-
     if (data) {
       setUserProfile(data);
       setIsRoleLoaded(true);
@@ -64,7 +62,6 @@ export default function MainLayout() {
 
   const { totalItems } = useContext(CartContext);
   const isAdmin = userProfile?.role === 'admin';
-  console.debug('[MainLayout] session, userProfile, isAdmin:', { session, userProfile, isAdmin });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

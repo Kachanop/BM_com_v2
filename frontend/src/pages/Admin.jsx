@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Users, Package, ShoppingBag, Lock, LogIn, ImagePlus, RotateCcw } from 'lucide-react';
+import { BarChart3, Users, Package, ShoppingBag, Lock, ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { saveProductsToStorage, resetProductsToDefault } from '../data/products';
 import { useProducts } from '../hooks/useProducts';
 
 const formatCurrency = (value) =>
   `฿${Number(value || 0).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-
-// Removed heuristic/admin email logic
 
 export default function Admin() {
   const [session, setSession] = useState(null);
@@ -18,10 +15,12 @@ export default function Admin() {
     totalOrders: 0,
     totalUsers: 0,
   });
-  const { products, reloadProducts } = useProducts();
+  const { products, reloadProducts, addProduct, deleteProduct } = useProducts();
   const [selectedProductId, setSelectedProductId] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [priceInput, setPriceInput] = useState('');
+  const [descriptionInput, setDescriptionInput] = useState('');
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
 
@@ -37,21 +36,16 @@ export default function Admin() {
   return () => subscription.unsubscribe();
 }, []);
 
-useEffect(() => {
-  supabase.auth.getSession().then((res) => {
-    console.log("Session:", res);
-  });
-}, []);
-
   useEffect(() => {
-    if (products.length > 0 && !selectedProductId) {
+    if (products.length > 0 && !selectedProductId && !isCreating) {
       const firstProduct = products[0];
       setSelectedProductId(firstProduct.id);
       setNameInput(firstProduct.name || '');
       setPriceInput(firstProduct.price?.toString() || '');
+      setDescriptionInput(firstProduct.description || '');
       setImageUrlInput(firstProduct.image_url || '');
     }
-  }, [products, selectedProductId]);
+  }, [products, selectedProductId, isCreating]);
 
   const loadStats = async () => {
     try {
@@ -84,64 +78,100 @@ useEffect(() => {
   };
 
   const handleSelectProduct = (product) => {
+    setIsCreating(false);
     setSelectedProductId(product.id);
     setNameInput(product.name || '');
     setPriceInput(product.price?.toString() || '');
+    setDescriptionInput(product.description || '');
     setImageUrlInput(product.image_url || '');
     setSaveMessage('');
   };
 
- const handleSaveProduct = async () => {
-  const { error } = await supabase
-    .from("products")
-    .update({
-      name: nameInput,
-      price: Number(priceInput),
-      image_url: imageUrlInput,
-    })
-    .eq("id", selectedProductId);
+  const handleStartCreate = () => {
+    setIsCreating(true);
+    setSelectedProductId(null);
+    setNameInput('');
+    setPriceInput('');
+    setDescriptionInput('');
+    setImageUrlInput('');
+    setSaveMessage('');
+  };
 
-  if (error) {
-    console.error(error);
-    alert("บันทึกไม่สำเร็จ");
-    return;
-  }
+  const handleSaveProduct = async () => {
+    if (!nameInput.trim() || !priceInput) {
+      alert('กรุณากรอกชื่อสินค้าและราคาให้ครบ');
+      return;
+    }
 
-  setSaveMessage("อัปเดตข้อมูลสินค้าเรียบร้อย");
-  reloadProducts();
-};
-  const handleResetProducts = () => {
-    const defaults = resetProductsToDefault();
-    const first = defaults[0];
-    setSelectedProductId(first?.id || null);
-    setNameInput(first?.name || '');
-    setPriceInput(first?.price?.toString() || '');
-    setImageUrlInput(first?.image_url || '');
-    setSaveMessage('คืนค่าเริ่มต้นเรียบร้อย');
-    setTimeout(() => reloadProducts(), 100);
+    if (isCreating) {
+      const { error } = await addProduct({
+        name: nameInput,
+        price: Number(priceInput),
+        description: descriptionInput,
+        image_url: imageUrlInput,
+      });
+
+      if (error) {
+        console.error(error);
+        alert('เพิ่มสินค้าไม่สำเร็จ');
+        return;
+      }
+
+      setIsCreating(false);
+      setSaveMessage('เพิ่มสินค้าใหม่เรียบร้อย');
+      return;
+    }
+
+    const { error } = await supabase
+      .from("products")
+      .update({
+        name: nameInput,
+        price: Number(priceInput),
+        description: descriptionInput,
+        image_url: imageUrlInput,
+      })
+      .eq("id", selectedProductId);
+
+    if (error) {
+      console.error(error);
+      alert("บันทึกไม่สำเร็จ");
+      return;
+    }
+
+    setSaveMessage("อัปเดตข้อมูลสินค้าเรียบร้อย");
+    reloadProducts();
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!selectedProductId) return;
+    if (!confirm('ยืนยันลบสินค้านี้ออกจากระบบ')) return;
+
+    const { error } = await deleteProduct(selectedProductId);
+
+    if (error) {
+      console.error(error);
+      alert('ลบสินค้าไม่สำเร็จ');
+      return;
+    }
+
+    setSelectedProductId(null);
+    setSaveMessage('ลบสินค้าเรียบร้อย');
   };
 
  const checkAdmin = async () => {
   try {
-    console.log("Start checkAdmin");
-
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
-    console.log("Session:", session);
-
     setSession(session);
 
     if (session?.user?.id) {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", session.user.id)
         .maybeSingle();
-
-      console.log("Profile:", data);
-      console.log("Profile Error:", error);
 
       const admin =
         data?.role === "admin" ||
@@ -156,7 +186,6 @@ useEffect(() => {
   } catch (err) {
     console.error(err);
   } finally {
-    console.log("Finish checkAdmin");
     setLoading(false);
   }
 };
@@ -236,15 +265,15 @@ useEffect(() => {
         <div className="flex items-center justify-between gap-3 mb-6">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <ImagePlus className="w-5 h-5 text-blue-600" />
-            จัดการรูปภาพสินค้าแนะนำ
+            จัดการข้อมูลสินค้า
           </h2>
           <button
             type="button"
-            onClick={handleResetProducts}
-            className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:text-blue-600"
+            onClick={handleStartCreate}
+            className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            <RotateCcw className="w-4 h-4" />
-            คืนค่าเริ่มต้น
+            <Plus className="w-4 h-4" />
+            เพิ่มสินค้าใหม่
           </button>
         </div>
 
@@ -267,19 +296,25 @@ useEffect(() => {
           </div>
 
           <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
-            {selectedProductId ? (
+            {selectedProductId || isCreating ? (
               <>
                 <div className="mb-4">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">ตัวอย่างภาพ</p>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">
+                    {isCreating ? 'เพิ่มสินค้าใหม่' : 'ตัวอย่างภาพ'}
+                  </p>
                   <h3 className="mt-1 text-xl font-bold text-gray-900">
-                    {products.find((product) => product.id === selectedProductId)?.name}
+                    {isCreating
+                      ? (nameInput || 'สินค้าใหม่')
+                      : products.find((product) => product.id === selectedProductId)?.name}
                   </h3>
                 </div>
-                <img
-                  src={imageUrlInput || products.find((product) => product.id === selectedProductId)?.image_url}
-                  alt="ตัวอย่างภาพสินค้า"
-                  className="h-56 w-full rounded-2xl object-cover border border-gray-200"
-                />
+                {(imageUrlInput || !isCreating) && (
+                  <img
+                    src={imageUrlInput || products.find((product) => product.id === selectedProductId)?.image_url}
+                    alt="ตัวอย่างภาพสินค้า"
+                    className="h-56 w-full rounded-2xl object-cover border border-gray-200"
+                  />
+                )}
                 <div className="mt-4 space-y-3">
                   <label className="block text-sm font-medium text-gray-700">
                     ชื่อสินค้า
@@ -304,6 +339,16 @@ useEffect(() => {
                     />
                   </label>
                   <label className="block text-sm font-medium text-gray-700">
+                    รายละเอียดสินค้า
+                    <textarea
+                      value={descriptionInput}
+                      onChange={(event) => setDescriptionInput(event.target.value)}
+                      placeholder="อธิบายจุดเด่นของสินค้าให้ลูกค้าเข้าใจง่าย"
+                      rows={3}
+                      className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-blue-500"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-gray-700">
                     URL รูปภาพ
                     <input
                       type="url"
@@ -314,18 +359,30 @@ useEffect(() => {
                     />
                   </label>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSaveProduct}
-                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                  <ImagePlus className="w-4 h-4" />
-                  บันทึกข้อมูลสินค้า
-                </button>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSaveProduct}
+                    className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    <ImagePlus className="w-4 h-4" />
+                    {isCreating ? 'เพิ่มสินค้า' : 'บันทึกข้อมูลสินค้า'}
+                  </button>
+                  {!isCreating && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteProduct}
+                      className="inline-flex items-center gap-2 rounded-full border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      ลบสินค้านี้
+                    </button>
+                  )}
+                </div>
                 {saveMessage ? <p className="mt-3 text-sm text-green-600">{saveMessage}</p> : null}
               </>
             ) : (
-              <p className="text-gray-500">เลือกสินค้าจากรายการด้านซ้ายเพื่อเริ่มแก้ไข</p>
+              <p className="text-gray-500">เลือกสินค้าจากรายการด้านซ้าย หรือกดเพิ่มสินค้าใหม่</p>
             )}
           </div>
         </div>

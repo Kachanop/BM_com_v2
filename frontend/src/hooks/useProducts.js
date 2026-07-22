@@ -13,9 +13,6 @@ export function useProducts() {
       .select("*")
       .order("id");
 
-    console.log("Products:", data);
-    console.log("Error:", error);
-
     if (!error) {
       setProducts(data ?? []);
     }
@@ -27,5 +24,30 @@ export function useProducts() {
     reloadProducts();
   }, [reloadProducts]);
 
-  return { products, loading, reloadProducts };
+  const addProduct = useCallback(async ({ name, price, description, image_url }) => {
+    const { error } = await supabase
+      .from("products")
+      .insert({ name, price, description, image_url });
+
+    if (!error) {
+      await reloadProducts();
+    }
+
+    return { error };
+  }, [reloadProducts]);
+
+  const deleteProduct = useCallback(async (id) => {
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", id);
+
+    if (!error) {
+      await reloadProducts();
+    }
+
+    return { error };
+  }, [reloadProducts]);
+
+  return { products, loading, reloadProducts, addProduct, deleteProduct };
 }
