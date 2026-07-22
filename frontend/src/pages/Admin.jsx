@@ -26,6 +26,24 @@ export default function Admin() {
   const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
+  checkAdmin();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(() => {
+    checkAdmin();
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+
+useEffect(() => {
+  supabase.auth.getSession().then((res) => {
+    console.log("Session:", res);
+  });
+}, []);
+
+  useEffect(() => {
     if (products.length > 0 && !selectedProductId) {
       const firstProduct = products[0];
       setSelectedProductId(firstProduct.id);
@@ -37,11 +55,16 @@ export default function Admin() {
 
   const loadStats = async () => {
     try {
-      const [{ count: usersCount }, { count: ordersCount }] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('orders').select('*', { count: 'exact', head: true }),
-      ]);
+      const [{ count: usersCount }, { count: ordersCount }] =
+  await Promise.all([
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true }),
 
+    supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true }),
+  ]);
       let totalSales = 0;
       try {
         const { data: orders } = await supabase.from('orders').select('total_amount');
@@ -68,23 +91,25 @@ export default function Admin() {
     setSaveMessage('');
   };
 
-  const handleSaveProduct = () => {
-    const nextProducts = products.map((product) =>
-      product.id === selectedProductId
-        ? {
-            ...product,
-            name: nameInput.trim() || product.name,
-            price: Number(priceInput) || product.price,
-            image_url: imageUrlInput.trim() || product.image_url,
-          }
-        : product,
-    );
+ const handleSaveProduct = async () => {
+  const { error } = await supabase
+    .from("products")
+    .update({
+      name: nameInput,
+      price: Number(priceInput),
+      image_url: imageUrlInput,
+    })
+    .eq("id", selectedProductId);
 
-    saveProductsToStorage(nextProducts);
-    setSaveMessage('อัปเดตข้อมูลสินค้าเรียบร้อย');
-    setTimeout(() => reloadProducts(), 100);
-  };
+  if (error) {
+    console.error(error);
+    alert("บันทึกไม่สำเร็จ");
+    return;
+  }
 
+  setSaveMessage("อัปเดตข้อมูลสินค้าเรียบร้อย");
+  reloadProducts();
+};
   const handleResetProducts = () => {
     const defaults = resetProductsToDefault();
     const first = defaults[0];
@@ -96,34 +121,52 @@ export default function Admin() {
     setTimeout(() => reloadProducts(), 100);
   };
 
-  const checkAdmin = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+ const checkAdmin = async () => {
+  try {
+    console.log("Start checkAdmin");
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    console.log("Session:", session);
+
     setSession(session);
 
     if (session?.user?.id) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', session.user.id)
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
         .maybeSingle();
 
-      const metadataRole =
-        session.user.user_metadata?.role || session.user.app_metadata?.role;
-      const admin = data?.role === 'admin' || metadataRole === 'admin';
+      console.log("Profile:", data);
+      console.log("Profile Error:", error);
+
+      const admin =
+        data?.role === "admin" ||
+        session.user.user_metadata?.role === "admin";
 
       setIsAdmin(admin);
+
       if (admin) {
         await loadStats();
       }
-    } else {
-      setIsAdmin(false);
     }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    console.log("Finish checkAdmin");
     setLoading(false);
-  };
-
-  if (loading) {
-    return <div className="text-center py-20">กำลังตรวจสอบสิทธิ์...</div>;
   }
+};
+ if (loading) {
+  return (
+    <div className="text-center py-20">
+      กำลังตรวจสอบสิทธิ์...
+    </div>
+  );
+}
 
     if (!session) {
     return (
