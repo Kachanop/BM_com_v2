@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Cart from './pages/Cart';
 import History from './pages/History';
 import Admin from './pages/Admin';
+import ProductDetail from './pages/ProductDetail';
 import { CartProvider } from './lib/CartContext';
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
       <Routes>
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Home />} />
+          <Route path="product/:id" element={<ProductDetail />} />
           <Route path="cart" element={<Cart />} />
           <Route path="history" element={<History />} />
           <Route path="admin" element={<Admin />} />
