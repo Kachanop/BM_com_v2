@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { BarChart3, Users, Package, ShoppingBag, Lock, ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useProducts } from '../hooks/useProducts';
@@ -25,6 +26,7 @@ export default function Admin() {
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [categoryInput, setCategoryInput] = useState('general');
   const [saveMessage, setSaveMessage] = useState('');
+  const [orders, setOrders] = useState([]);
 
   useEffect(() => {
   checkAdmin();
@@ -78,6 +80,15 @@ export default function Admin() {
     } catch {
       setStats({ totalSales: 0, totalOrders: 0, totalUsers: 0 });
     }
+  };
+
+  const loadOrders = async () => {
+    const { data } = await supabase
+      .from('orders')
+      .select('*, profiles(full_name, email)')
+      .order('created_at', { ascending: false });
+
+    setOrders(data ?? []);
   };
 
   const handleSelectProduct = (product) => {
@@ -165,6 +176,18 @@ export default function Admin() {
     setSaveMessage('ลบสินค้าเรียบร้อย');
   };
 
+  const handleUpdateOrderStatus = async (orderId, status) => {
+    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId);
+
+    if (error) {
+      console.error(error);
+      alert('เปลี่ยนสถานะคำสั่งซื้อไม่สำเร็จ');
+      return;
+    }
+
+    await loadOrders();
+  };
+
  const checkAdmin = async () => {
   try {
     const {
@@ -188,6 +211,7 @@ export default function Admin() {
 
       if (admin) {
         await loadStats();
+        await loadOrders();
       }
     }
   } catch (err) {
@@ -407,6 +431,56 @@ export default function Admin() {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+        <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+          <ShoppingBag className="w-5 h-5 text-blue-600" />
+          จัดการคำสั่งซื้อ
+        </h2>
+        {orders.length === 0 ? (
+          <p className="text-gray-500">ยังไม่มีคำสั่งซื้อ</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 text-gray-500">
+                  <th className="py-3 pr-4">วันที่</th>
+                  <th className="py-3 pr-4">ผู้ซื้อ</th>
+                  <th className="py-3 pr-4">ยอดรวม</th>
+                  <th className="py-3 pr-4">สถานะ</th>
+                  <th className="py-3 pr-4">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  <tr key={order.id} className="border-b border-gray-100">
+                    <td className="py-3 pr-4">{new Date(order.created_at).toLocaleString('th-TH')}</td>
+                    <td className="py-3 pr-4">{order.profiles?.full_name || order.profiles?.email || 'ไม่ทราบชื่อ'}</td>
+                    <td className="py-3 pr-4 font-semibold text-blue-600">{formatCurrency(order.total_amount)}</td>
+                    <td className="py-3 pr-4">
+                      <select
+                        value={order.status}
+                        onChange={(event) => handleUpdateOrderStatus(order.id, event.target.value)}
+                        className="rounded-full border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-blue-500"
+                      >
+                        <option value="pending">รอดำเนินการ</option>
+                        <option value="paid">ชำระเงินแล้ว</option>
+                        <option value="shipped">จัดส่งแล้ว</option>
+                        <option value="cancelled">ยกเลิก</option>
+                      </select>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <Link to={`/order/${order.id}`} className="text-blue-600 hover:text-blue-700 font-medium">
+                        ดูรายละเอียด
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
