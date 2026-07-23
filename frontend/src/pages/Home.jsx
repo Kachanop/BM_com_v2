@@ -22,10 +22,6 @@ export default function Home() {
       return matchesTerm && matchesCategory;
     });
   }, [products, searchTerm, selectedCategory]);
-<<<<<<< HEAD
-=======
-
->>>>>>> worktree-catalog-search-and-order-system
   return (
     <div className="space-y-8">
       <section className="relative overflow-hidden rounded-[32px] border border-blue-100 bg-white p-8 shadow-[0_20px_80px_-20px_rgba(37,99,235,0.18)] sm:p-10 lg:p-14">
