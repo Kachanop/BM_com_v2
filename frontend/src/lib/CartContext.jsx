@@ -35,14 +35,21 @@ export function CartProvider({ children }) {
   }, [cartItems]);
 
   const addToCart = (product) => {
+    const available = product.stock ?? product.quantity ?? product.available ?? Infinity;
+    if (available <= 0) {
+      window.alert('ขออภัย สินค้าหมดสต็อก');
+      return;
+    }
+
     setCartItems((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
+        const newQty = Math.min(MAX_ITEM_QUANTITY, existing.quantity + 1, available);
         return prev.map((item) =>
           item.id === product.id
             ? {
                 ...item,
-                quantity: Math.min(MAX_ITEM_QUANTITY, item.quantity + 1),
+                quantity: newQty,
               }
             : item
         );
@@ -53,12 +60,16 @@ export function CartProvider({ children }) {
 
   const updateQuantity = (productId, quantity) => {
     setCartItems((prev) => {
+      const target = prev.find((p) => p.id === productId);
+      const available = target ? (target.stock ?? target.quantity ?? target.available ?? Infinity) : Infinity;
+
       if (quantity <= 0) {
         return prev.filter((item) => item.id !== productId);
       }
+
       return prev.map((item) =>
         item.id === productId
-          ? { ...item, quantity: Math.min(MAX_ITEM_QUANTITY, quantity) }
+          ? { ...item, quantity: Math.min(MAX_ITEM_QUANTITY, Math.min(quantity, available)) }
           : item
       );
     });
