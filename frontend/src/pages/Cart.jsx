@@ -21,6 +21,31 @@ export default function Cart() {
 
     setIsSubmitting(true);
 
+    // ตรวจสอบสต็อกล่าสุดก่อนสร้างคำสั่งซื้อ
+    const productIds = cartItems.map((i) => i.id);
+    const { data: latestProducts, error: prodError } = await supabase
+      .from('products')
+      .select('id, stock')
+      .in('id', productIds);
+
+    if (prodError) {
+      console.error(prodError);
+      setErrorMessage('ไม่สามารถตรวจสอบสต็อกสินค้าได้ กรุณาลองใหม่');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const stockMap = new Map((latestProducts || []).map((p) => [p.id, p.stock ?? 0]));
+
+    for (const item of cartItems) {
+      const available = stockMap.get(item.id) ?? 0;
+      if (available < (item.quantity || 0)) {
+        setErrorMessage(`จำนวนสินค้า '${item.name}' มีไม่เพียงพอ (คงเหลือ ${available})`);
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -52,6 +77,23 @@ export default function Cart() {
       setErrorMessage('บันทึกรายการสินค้าในคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่');
       setIsSubmitting(false);
       return;
+    }
+
+    // ลดสต็อกสินค้า (ไม่เป็นอะตอมติกในขั้นตอนนี้) — ทำทีละรายการ
+    try {
+      await Promise.all(
+        orderItems.map(async (it) => {
+          const current = stockMap.get(it.product_id) ?? 0;
+          const newStock = Math.max(0, current - (it.quantity || 0));
+          const { error: updateErr } = await supabase
+            .from('products')
+            .update({ stock: newStock })
+            .eq('id', it.product_id);
+          if (updateErr) console.error('failed to update stock', updateErr);
+        })
+      );
+    } catch (e) {
+      console.error('stock update error', e);
     }
 
     clearCart();
