@@ -24,10 +24,10 @@ export function useProducts() {
     reloadProducts();
   }, [reloadProducts]);
 
-  const addProduct = useCallback(async ({ name, price, description, image_url, category }) => {
+  const addProduct = useCallback(async ({ name, price, description, image_url, category, stock }) => {
     const { error } = await supabase
       .from("products")
-      .insert({ name, price, description, image_url, category });
+      .insert({ name, price, description, image_url, category, stock: stock ?? null });
 
     if (!error) {
       await reloadProducts();
