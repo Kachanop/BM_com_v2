@@ -1,8 +1,24 @@
-import { useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Trash2, Plus, Minus, CheckCircle2 } from 'lucide-react';
+import { useContext, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Trash2, Plus, Minus, ShoppingCart, ArrowRight, MapPin, User, Phone } from 'lucide-react';
 import { CartContext } from '../lib/CartContext';
 import { supabase } from '../lib/supabase';
+
+function Field({ label, icon: Icon, required, ...props }) {
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1">
+        <Icon className="w-3 h-3" />
+        {label}
+        {required && <span className="text-red-500">*</span>}
+      </span>
+      <input
+        {...props}
+        className="mt-1.5 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 transition"
+      />
+    </label>
+  );
+}
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -10,18 +26,44 @@ export default function Cart() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Shipping address state
+  const [shipping, setShipping] = useState({ name: '', phone: '', address: '' });
+
+  // Pre-fill from user profile
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      if (profile) {
+        setShipping((prev) => ({
+          name: prev.name || profile.full_name || '',
+          phone: prev.phone || profile.phone || '',
+          address: prev.address,
+        }));
+      }
+    });
+  }, []);
+
+  const setField = (key) => (e) => setShipping((prev) => ({ ...prev, [key]: e.target.value }));
+
   const handleConfirmOrder = async () => {
     setErrorMessage('');
-    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!session) {
-      setErrorMessage('กรุณาเข้าสู่ระบบก่อนสั่งซื้อ');
-      return;
-    }
+    // Validate shipping
+    if (!shipping.name.trim()) { setErrorMessage('กรุณากรอกชื่อ-นามสกุลผู้รับ'); return; }
+    if (!shipping.phone.trim()) { setErrorMessage('กรุณากรอกเบอร์โทรศัพท์'); return; }
+    if (!shipping.address.trim()) { setErrorMessage('กรุณากรอกที่อยู่จัดส่ง'); return; }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setErrorMessage('กรุณาเข้าสู่ระบบก่อนสั่งซื้อ'); return; }
 
     setIsSubmitting(true);
 
-    // ตรวจสอบสต็อกล่าสุดก่อนสร้างคำสั่งซื้อ
+    // Check stock
     const productIds = cartItems.map((i) => i.id);
     const { data: latestProducts, error: prodError } = await supabase
       .from('products')
@@ -29,7 +71,6 @@ export default function Cart() {
       .in('id', productIds);
 
     if (prodError) {
-      console.error(prodError);
       setErrorMessage('ไม่สามารถตรวจสอบสต็อกสินค้าได้ กรุณาลองใหม่');
       setIsSubmitting(false);
       return;
@@ -40,24 +81,27 @@ export default function Cart() {
     for (const item of cartItems) {
       const available = stockMap.get(item.id) ?? 0;
       if (available < (item.quantity || 0)) {
-        setErrorMessage(`จำนวนสินค้า '${item.name}' มีไม่เพียงพอ (คงเหลือ ${available})`);
+        setErrorMessage(`จำนวนสินค้า "${item.name}" มีไม่เพียงพอ (คงเหลือ ${available} ชิ้น)`);
         setIsSubmitting(false);
         return;
       }
     }
 
+    // Create order with shipping address
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
         user_id: session.user.id,
         total_amount: totalAmount,
         status: 'pending',
+        shipping_name: shipping.name.trim(),
+        shipping_phone: shipping.phone.trim(),
+        shipping_address: shipping.address.trim(),
       })
       .select()
       .single();
 
     if (orderError || !order) {
-      console.error(orderError);
       setErrorMessage('สร้างคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่');
       setIsSubmitting(false);
       return;
@@ -73,23 +117,18 @@ export default function Cart() {
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
 
     if (itemsError) {
-      console.error(itemsError);
-      setErrorMessage('บันทึกรายการสินค้าในคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่');
+      setErrorMessage('บันทึกรายการสินค้าไม่สำเร็จ กรุณาลองใหม่');
       setIsSubmitting(false);
       return;
     }
 
-    // ลดสต็อกสินค้า (ไม่เป็นอะตอมติกในขั้นตอนนี้) — ทำทีละรายการ
+    // Deduct stock
     try {
       await Promise.all(
         orderItems.map(async (it) => {
           const current = stockMap.get(it.product_id) ?? 0;
           const newStock = Math.max(0, current - (it.quantity || 0));
-          const { error: updateErr } = await supabase
-            .from('products')
-            .update({ stock: newStock })
-            .eq('id', it.product_id);
-          if (updateErr) console.error('failed to update stock', updateErr);
+          await supabase.from('products').update({ stock: newStock }).eq('id', it.product_id);
         })
       );
     } catch (e) {
@@ -101,92 +140,148 @@ export default function Cart() {
     navigate(`/order/${order.id}`);
   };
 
-  return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <h1 className="text-3xl font-bold border-b border-gray-200 dark:border-gray-700 pb-4">ตะกร้าสินค้าของคุณ</h1>
-
-      {cartItems.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
-          <p className="text-gray-500">ไม่มีสินค้าในตะกร้า</p>
-          <p className="mt-2 text-sm text-gray-500">ลองเพิ่มสินค้าในหน้าหลักก่อน</p>
+  if (cartItems.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto py-20 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+          <ShoppingCart className="w-7 h-7 text-gray-300" />
         </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <div className="flex flex-col gap-4">
-              {cartItems.map((item) => (
-                <div key={item.id} className="flex flex-col gap-4 rounded-3xl border border-gray-100 p-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{item.name}</h2>
-                    <div className="mt-3 flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 transition hover:border-blue-500 hover:text-blue-600"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="min-w-[48px] text-center text-sm font-semibold text-gray-900 dark:text-gray-100">{item.quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-700 transition hover:border-blue-500 hover:text-blue-600"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <p className="mt-2 text-sm text-gray-500">ยอดรวมสินค้า: ฿{(item.price * item.quantity).toLocaleString()}</p>
-                  </div>
-                  <div className="flex flex-col items-start gap-3 sm:items-end">
-                    <button
-                      type="button"
-                      onClick={() => removeFromCart(item.id)}
-                      className="inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      ลบออก
-                    </button>
-                    <p className="text-xs text-gray-500">สูงสุด 20 ชิ้นต่อสินค้า</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        <h1 className="text-xl font-bold text-gray-900">ตะกร้าว่างเปล่า</h1>
+        <p className="mt-1 text-sm text-gray-500">ยังไม่มีสินค้าในตะกร้าของคุณ</p>
+        <Link to="/" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+          เลือกซื้อสินค้า
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+    );
+  }
 
-          {errorMessage && (
-            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>
-          )}
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">ตะกร้าสินค้า</h1>
+        <button type="button" onClick={clearCart} className="text-sm text-gray-400 hover:text-red-500 transition-colors">
+          ล้างตะกร้า
+        </button>
+      </div>
 
-          <div className="flex flex-col gap-4 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-500">รวมสินค้า</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{totalItems} ชิ้น</p>
+      {/* Cart items */}
+      <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+        {cartItems.map((item, index) => (
+          <div key={item.id} className={`flex items-center gap-4 p-5 ${index < cartItems.length - 1 ? 'border-b border-gray-50' : ''}`}>
+            {item.image_url && (
+              <img src={item.image_url} alt={item.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 truncate">{item.name}</h3>
+              <p className="text-sm text-gray-500 mt-0.5">฿{Number(item.price).toLocaleString()} / ชิ้น</p>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">ยอดรวม</p>
-              <p className="text-2xl font-bold text-blue-600">฿{totalAmount.toLocaleString()}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={clearCart}
-                className="rounded-full bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600 transition-colors"
               >
-                ล้างตะกร้า
+                <Minus className="w-3.5 h-3.5" />
               </button>
+              <span className="w-8 text-center text-sm font-semibold text-gray-900">{item.quantity}</span>
               <button
                 type="button"
-                onClick={handleConfirmOrder}
-                disabled={isSubmitting}
-                className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600 transition-colors"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                {isSubmitting ? 'กำลังบันทึก...' : 'ยืนยันคำสั่งซื้อ'}
+                <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
+            <div className="text-right min-w-[80px]">
+              <p className="font-semibold text-gray-900">฿{(item.price * item.quantity).toLocaleString()}</p>
+            </div>
+            <button type="button" onClick={() => removeFromCart(item.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
+        ))}
+      </div>
+
+      {/* Shipping address form */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+            <MapPin className="w-4 h-4 text-blue-600" />
+          </div>
+          <h2 className="font-semibold text-gray-900">ที่อยู่จัดส่ง</h2>
+        </div>
+        <div className="space-y-3">
+          <Field
+            label="ชื่อ-นามสกุลผู้รับ"
+            icon={User}
+            required
+            type="text"
+            placeholder="เช่น สมชาย ใจดี"
+            value={shipping.name}
+            onChange={setField('name')}
+          />
+          <Field
+            label="เบอร์โทรศัพท์"
+            icon={Phone}
+            required
+            type="tel"
+            placeholder="เช่น 081-234-5678"
+            value={shipping.phone}
+            onChange={setField('phone')}
+          />
+          <label className="block">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              ที่อยู่จัดส่ง
+              <span className="text-red-500">*</span>
+            </span>
+            <textarea
+              rows={3}
+              placeholder="บ้านเลขที่ ซอย ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด รหัสไปรษณีย์"
+              value={shipping.address}
+              onChange={setField('address')}
+              className="mt-1.5 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 transition resize-none"
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* Error */}
+      {errorMessage && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
         </div>
       )}
+
+      {/* Summary */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-6">
+        <div className="space-y-2 pb-4 border-b border-gray-50">
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>จำนวนสินค้า</span>
+            <span>{totalItems} ชิ้น</span>
+          </div>
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>ค่าจัดส่ง</span>
+            <span className="text-emerald-600 font-medium">ฟรี</span>
+          </div>
+        </div>
+        <div className="flex items-center justify-between pt-4">
+          <div>
+            <p className="text-sm text-gray-500">ยอดรวมทั้งหมด</p>
+            <p className="text-2xl font-bold text-gray-900">฿{totalAmount.toLocaleString()}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleConfirmOrder}
+            disabled={isSubmitting}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'กำลังดำเนินการ...' : 'ยืนยันคำสั่งซื้อ'}
+            {!isSubmitting && <ArrowRight className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
