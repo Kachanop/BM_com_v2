@@ -25,6 +25,7 @@
 - ไม่มีไฟล์ในโค้ด — ใช้ Supabase MCP tool เรียก apply_migration โดยตรงกับโปรเจกต์ `ntcxxxstddjraothilqk`
 
 **Interfaces:**
+<<<<<<< HEAD
 - Produces: คอลัมน์ `products.category` (text, NOT NULL, default `'general'`, CHECK ใน `('gaming','office','general','creator')`), policy `orders_update_admin` (UPDATE บนตาราง `orders` โดยใช้ `is_admin()`), และ FK `orders.user_id -> profiles.id` — Task ถัดไปทุก task ที่แตะ category, เปลี่ยนสถานะออเดอร์, หรือ join `profiles` จากตาราง `orders` (Task 10) ต้องมีสามสิ่งนี้อยู่ก่อน
 
 - [ ] **Step 0: ตรวจสอบและเพิ่ม FK สำหรับ join orders -> profiles (จำเป็นสำหรับ Task 10)**
@@ -44,6 +45,9 @@ alter table orders
 ```
 
 ปลอดภัยที่จะเพิ่มแม้มีข้อมูลอยู่แล้ว เพราะ `orders.user_id` ทุกแถวถูกสร้างผ่าน RLS policy `orders_insert_own` ที่บังคับ `user_id = auth.uid()` อยู่แล้ว จึงไม่มีทางมีค่าที่ไม่ตรงกับ `profiles.id` ใดๆ
+=======
+- Produces: คอลัมน์ `products.category` (text, NOT NULL, default `'general'`, CHECK ใน `('gaming','office','general','creator')`) และ policy `orders_update_admin` (UPDATE บนตาราง `orders` โดยใช้ `is_admin()`) — Task ถัดไปทุก task ที่แตะ category หรือเปลี่ยนสถานะออเดอร์ต้องมีสองสิ่งนี้อยู่ก่อน
+>>>>>>> worktree-catalog-search-and-order-system
 
 - [ ] **Step 1: Apply migration เพิ่มคอลัมน์ category**
 
@@ -93,6 +97,7 @@ select policyname, cmd from pg_policies where tablename = 'orders';
 
 Expected: มีแถว `orders_update_admin | UPDATE` อยู่ในผลลัพธ์ (นอกเหนือจาก policy INSERT/SELECT เดิม)
 
+<<<<<<< HEAD
 ตรวจ FK อีกครั้งให้ชัวร์:
 
 ```sql
@@ -101,6 +106,8 @@ select conname from pg_constraint where conname = 'orders_user_id_profiles_fkey'
 
 Expected: คืนหนึ่งแถว
 
+=======
+>>>>>>> worktree-catalog-search-and-order-system
 - [ ] **Step 4: Commit**
 
 ไม่มีไฟล์โค้ดให้ commit ใน task นี้ (migration อยู่ในฐานข้อมูล ไม่ใช่ไฟล์ในโปรเจกต์) ข้ามไป task ถัดไปได้เลย
@@ -1395,7 +1402,11 @@ git commit -m "feat: load real order history from database"
 - Modify: `frontend/src/pages/Admin.jsx`
 
 **Interfaces:**
+<<<<<<< HEAD
 - Consumes: policy `orders_update_admin` จาก Task 1, FK `orders_user_id_profiles_fkey` จาก Task 1 (จำเป็นสำหรับ embed `profiles(full_name, email)` ใน `loadOrders`), route `/order/:id` จาก Task 8
+=======
+- Consumes: policy `orders_update_admin` จาก Task 1, route `/order/:id` จาก Task 8
+>>>>>>> worktree-catalog-search-and-order-system
 - Produces: ไม่มี interface ใหม่ให้ task อื่นใช้ต่อ (เป็นหน้าจอปลายทาง)
 
 - [ ] **Step 1: เพิ่ม import Link และ state orders**
