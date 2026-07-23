@@ -28,8 +28,12 @@ npm run dev
 | เอกสาร | เนื้อหา |
 | --- | --- |
 | [tech-stack.md](./docs/tech-stack.md) | เทคโนโลยีที่ใช้ทั้งหมด และทำหน้าที่อะไร |
+| [system-architecture.md](./docs/system-architecture.md) | แผนภาพสถาปัตยกรรมระบบโดยรวม |
 | [how-it-works.md](./docs/how-it-works.md) | อธิบายการทำงานของระบบแบบภาษาคน |
+| [personas.md](./docs/personas.md) | Persona ของผู้ใช้งานแต่ละกลุ่ม |
 | [use-case-and-sequence.md](./docs/use-case-and-sequence.md) | แผนภาพการใช้งานระบบและลำดับการทำงาน |
+| [class-diagram.md](./docs/class-diagram.md) | แบบจำลองคลาสของโดเมนหลักในระบบ |
+| [wireframes.md](./docs/wireframes.md) | Wireframe/Prototype ของหน้าจอหลัก (ลิงก์ไปหน้าเว็บโต้ตอบได้) |
 | [data-schema.md](./docs/data-schema.md) | โครงสร้างฐานข้อมูลและความสัมพันธ์ของข้อมูล |
 | [api.md](./docs/api.md) | เอกสาร API ที่ใช้งานจริงและที่ยังไม่ได้ใช้งาน |
 | [swagger.yaml](./docs/swagger.yaml) | สเปก API แบบละเอียด เปิดดูได้ที่ Swagger Editor |
