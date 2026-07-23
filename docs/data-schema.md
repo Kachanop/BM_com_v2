@@ -26,6 +26,7 @@ erDiagram
         numeric price
         text image_url
         text category
+        integer stock
         timestamptz created_at
     }
 
@@ -35,6 +36,9 @@ erDiagram
         numeric total_amount
         text status
         text slip_url
+        text shipping_name
+        text shipping_phone
+        text shipping_address
         timestamptz created_at
     }
 
@@ -74,6 +78,7 @@ erDiagram
 | price | ราคา (บาท) |
 | image_url | ลิงก์รูปภาพสินค้า |
 | category | หมวดหมู่สินค้า มีค่าได้ 4 แบบ คือ gaming (เกมมิ่ง) office (ทำงานออฟฟิศ) general (เรียน-ทำงานทั่วไป) creator (สตรีมมิ่ง/สร้างคอนเทนต์) ค่าเริ่มต้นคือ general |
+| stock | จำนวนสินค้าคงเหลือ (ชิ้น) ค่าเริ่มต้นคือ 0 เมื่อลูกค้าสั่งซื้อสำเร็จระบบจะหักออกอัตโนมัติ |
 | created_at | วันเวลาที่เพิ่มสินค้าเข้าระบบ |
 
 ### ตาราง orders (คำสั่งซื้อ)
@@ -87,6 +92,9 @@ erDiagram
 | total_amount | ยอดรวมของคำสั่งซื้อ |
 | status | สถานะคำสั่งซื้อ มีค่าได้ 4 แบบ คือ pending (รอดำเนินการ) paid (ชำระแล้ว) shipped (จัดส่งแล้ว) cancelled (ยกเลิก) |
 | slip_url | ลิงก์รูปสลิปโอนเงิน (สำหรับอนาคต เมื่อมีระบบตรวจสลิป) |
+| shipping_name | ชื่อ-นามสกุลผู้รับสินค้า ที่ลูกค้ากรอกตอนยืนยันคำสั่งซื้อ |
+| shipping_phone | เบอร์โทรศัพท์ผู้รับสินค้า |
+| shipping_address | ที่อยู่จัดส่งสินค้าเต็ม (บ้านเลขที่ ซอย ถนน ตำบล อำเภอ จังหวัด รหัสไปรษณีย์) |
 | created_at | วันเวลาที่สั่งซื้อ |
 
 ### ตาราง order_items (รายการสินค้าในคำสั่งซื้อ)
