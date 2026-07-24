@@ -48,7 +48,7 @@ test.describe('Cart Page', () => {
     await mockNoSession(page);
     await mockSingleProduct(page);
     await page.goto('/');
-    await page.evaluate(() => localStorage.removeItem('bm_cart'));
+    await page.evaluate(() => localStorage.removeItem('bm_cart_guest'));
     await page.goto('/cart');
 
     await expect(page.getByText('ตะกร้าว่างเปล่า')).toBeVisible({ timeout: 5000 });
@@ -58,7 +58,7 @@ test.describe('Cart Page', () => {
     await mockNoSession(page);
     await mockSingleProduct(page);
     await page.goto('/');
-    await page.evaluate(() => localStorage.removeItem('bm_cart'));
+    await page.evaluate(() => localStorage.removeItem('bm_cart_guest'));
     await page.goto('/cart');
 
     await expect(page.getByRole('link', { name: 'เลือกซื้อสินค้า' })).toBeVisible({ timeout: 5000 });

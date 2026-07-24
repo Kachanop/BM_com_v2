@@ -123,16 +123,16 @@ export default function Cart() {
     }
 
     // Deduct stock
-    try {
-      await Promise.all(
-        orderItems.map(async (it) => {
-          const current = stockMap.get(it.product_id) ?? 0;
-          const newStock = Math.max(0, current - (it.quantity || 0));
-          await supabase.from('products').update({ stock: newStock }).eq('id', it.product_id);
-        })
-      );
-    } catch (e) {
-      console.error('stock update error', e);
+    for (const it of orderItems) {
+      const current = stockMap.get(it.product_id) ?? 0;
+      const newStock = Math.max(0, current - it.quantity);
+      const { error: stockError } = await supabase
+        .from('products')
+        .update({ stock: newStock })
+        .eq('id', it.product_id);
+      if (stockError) {
+        console.error('stock deduct error', it.product_id, stockError);
+      }
     }
 
     clearCart();
