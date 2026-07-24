@@ -1,0 +1,213 @@
+openapi: 3.0.3
+info:
+  title: BM Computer V2 API
+  description: >
+    เอกสาร API ของเว็บไซต์บ้านมีคอม V2 ครอบคลุมสองส่วน คือ API ของ Supabase
+    ที่หน้าเว็บใช้งานจริง (ตาราง products) และ API ของ Cloudflare Worker
+    ที่เตรียมไว้แต่ยังไม่ได้ใช้งานจริง (ระบุด้วยคำว่า mock ในคำอธิบาย)
+    แทนค่า YOUR_PROJECT_REF และ YOUR_PUBLISHABLE_KEY ด้วยค่าจริงของโปรเจกต์คุณเองก่อนใช้งาน
+  version: "1.0.0"
+servers:
+  - url: https://YOUR_PROJECT_REF.supabase.co
+    description: Supabase REST API (ใช้งานจริง)
+  - url: https://your-worker-name.workers.dev
+    description: Cloudflare Worker (ตัวอย่าง mock ยังไม่ได้ใช้งานจริง)
+
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: apikey
+      description: Supabase publishable/anon key
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: โทเคนของผู้ใช้ที่เข้าสู่ระบบแล้ว (จำเป็นสำหรับการเพิ่ม แก้ไข ลบสินค้า)
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: เซ็ตสุดคุ้ม Beginner
+        description:
+          type: string
+          example: เหมาะสำหรับทำงานทั่วไป พิมพ์งาน ดูหนัง ฟังเพลง
+        price:
+          type: number
+          example: 15900
+        image_url:
+          type: string
+          example: https://example.com/image.jpg
+        created_at:
+          type: string
+          format: date-time
+    ProductInput:
+      type: object
+      required: [name, price]
+      properties:
+        name:
+          type: string
+        price:
+          type: number
+        description:
+          type: string
+        image_url:
+          type: string
+    MockProductSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        price:
+          type: number
+    PaymentVerifyRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+    PaymentVerifyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+security:
+  - apiKeyAuth: []
+
+paths:
+  /rest/v1/products:
+    get:
+      summary: ดูรายการสินค้าทั้งหมด
+      description: ทุกคนเรียกได้ ไม่ต้องเข้าสู่ระบบ (กฎ RLS อนุญาตให้อ่านได้เสมอ)
+      parameters:
+        - name: select
+          in: query
+          schema:
+            type: string
+            example: "*"
+        - name: order
+          in: query
+          schema:
+            type: string
+            example: id
+      responses:
+        "200":
+          description: รายการสินค้า
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+    post:
+      summary: เพิ่มสินค้าใหม่
+      description: ต้องเข้าสู่ระบบด้วยบัญชีที่มีสิทธิ์แอดมินเท่านั้น (กฎ RLS จะปฏิเสธถ้าไม่ใช่แอดมิน)
+      security:
+        - apiKeyAuth: []
+          bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: เพิ่มสินค้าสำเร็จ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "401":
+          description: ไม่ได้เข้าสู่ระบบ หรือไม่มีสิทธิ์แอดมิน
+  /rest/v1/products?id=eq.{productId}:
+    patch:
+      summary: แก้ไขข้อมูลสินค้า
+      description: ต้องเข้าสู่ระบบด้วยบัญชีที่มีสิทธิ์แอดมินเท่านั้น
+      security:
+        - apiKeyAuth: []
+          bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "204":
+          description: แก้ไขสำเร็จ
+        "401":
+          description: ไม่ได้เข้าสู่ระบบ หรือไม่มีสิทธิ์แอดมิน
+    delete:
+      summary: ลบสินค้า
+      description: ต้องเข้าสู่ระบบด้วยบัญชีที่มีสิทธิ์แอดมินเท่านั้น
+      security:
+        - apiKeyAuth: []
+          bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: ลบสำเร็จ (หมายเหตุ หากไม่มีสิทธิ์ ระบบจะตอบ 204 เช่นกันแต่ไม่มีแถวถูกลบจริง เพราะกฎ RLS กรองแถวออกไปตั้งแต่ต้น)
+
+  /api/products:
+    get:
+      summary: "[mock] รายการสินค้าตัวอย่างจาก Cloudflare Worker"
+      description: >
+        ยังไม่ได้ใช้งานจริงในเว็บไซต์ ข้อมูลที่ตอบกลับเป็นค่าคงที่ที่เขียนไว้ในโค้ด
+        ไม่ได้ดึงจากฐานข้อมูลจริง เก็บไว้เป็นแนวทางพัฒนาต่อในอนาคต
+      security: []
+      responses:
+        "200":
+          description: รายการสินค้าตัวอย่าง
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MockProductSummary"
+  /api/payments/verify:
+    post:
+      summary: "[mock] ตรวจสอบยอดโอนเงินตัวอย่าง"
+      description: >
+        ยังไม่ได้ใช้งานจริงในเว็บไซต์ ตรวจสอบแบบง่ายว่ายอดตรงกับ 15900 บาทหรือไม่เท่านั้น
+        ไม่ได้เชื่อมกับผู้ให้บริการตรวจสลิปจริงแต่อย่างใด
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentVerifyRequest"
+      responses:
+        "200":
+          description: ยอดตรงกับค่าที่กำหนดไว้
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentVerifyResponse"
+        "400":
+          description: ยอดไม่ตรง
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentVerifyResponse"

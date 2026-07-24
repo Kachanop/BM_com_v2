@@ -1,0 +1,16 @@
+# Environment files (never commit secrets/keys)
+.env
+.env.*
+!.env.example
+
+# Editor/agent local tooling (not part of the project deliverable)
+.claude/
+.agents/
+skills-lock.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Course workshop PDFs and generated customer reports (not part of the code deliverable)
+docs_pdf/

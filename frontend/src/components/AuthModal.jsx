@@ -21,26 +21,36 @@ export default function AuthModal({ isOpen, onClose }) {
 
     try {
       if (isLogin) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (signInError) throw signInError;
+        if (!session) throw new Error('เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
         onClose();
       } else {
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
+            emailRedirectTo: window.location.origin,
             data: {
               full_name: fullName,
             }
           }
         });
         if (signUpError) throw signUpError;
-        setSuccessMsg('สมัครสมาชิกสำเร็จ กรุณาตรวจสอบอีเมลหรือเข้าสู่ระบบได้เลย');
+        if (!data?.user) throw new Error('ไม่สามารถสร้างบัญชีได้ กรุณาลองใหม่อีกครั้ง');
+
+        const needsEmailConfirmation = data.user.email_confirmed_at === null;
+        setSuccessMsg(
+          needsEmailConfirmation
+            ? 'สมัครสมาชิกสำเร็จ กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ'
+            : 'สมัครสมาชิกสำเร็จ คุณสามารถเข้าสู่ระบบได้เลย'
+        );
         setIsLogin(true);
         setPassword('');
+        setFullName('');
       }
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
@@ -67,13 +77,13 @@ export default function AuthModal({ isOpen, onClose }) {
           <div className="flex gap-2 mb-8 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
             <button
               onClick={() => { setIsLogin(true); setError(''); setSuccessMsg(''); }}
-              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${isLogin ? 'bg-white dark:bg-gray-800 shadow-sm text-red-600' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${isLogin ? 'bg-white dark:bg-gray-800 shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
             >
               เข้าสู่ระบบ
             </button>
             <button
               onClick={() => { setIsLogin(false); setError(''); setSuccessMsg(''); }}
-              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${!isLogin ? 'bg-white dark:bg-gray-800 shadow-sm text-red-600' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+              className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${!isLogin ? 'bg-white dark:bg-gray-800 shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
             >
               สมัครสมาชิกใหม่
             </button>
@@ -81,7 +91,7 @@ export default function AuthModal({ isOpen, onClose }) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 text-red-600 p-3 rounded-lg text-sm text-center">
+              <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 p-3 rounded-lg text-sm text-center">
                 {error}
               </div>
             )}
@@ -99,7 +109,7 @@ export default function AuthModal({ isOpen, onClose }) {
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
                   placeholder="สมชาย ใจดี"
                 />
               </div>
@@ -111,7 +121,7 @@ export default function AuthModal({ isOpen, onClose }) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
                 placeholder="you@example.com"
               />
             </div>
@@ -122,7 +132,7 @@ export default function AuthModal({ isOpen, onClose }) {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
                 placeholder="••••••••"
               />
             </div>
@@ -130,7 +140,7 @@ export default function AuthModal({ isOpen, onClose }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 mt-4"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50 mt-4"
             >
               {loading ? (
                 <span>กำลังดำเนินการ...</span>
