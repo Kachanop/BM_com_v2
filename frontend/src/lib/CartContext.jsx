@@ -1,4 +1,5 @@
-import { createContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useEffect, useMemo, useRef, useState } from 'react';
+import { supabase } from './supabase';
 
 export const CartContext = createContext({
   cartItems: [],
@@ -11,24 +12,60 @@ export const CartContext = createContext({
 });
 
 const MAX_ITEM_QUANTITY = 20;
+const LEGACY_CART_KEY = 'bm_cart';
+
+const cartKeyFor = (userId) => (userId ? `bm_cart_${userId}` : 'bm_cart_guest');
+
+const loadCart = (key) => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : [];
+  } catch (error) {
+    console.warn('Failed to read cart from localStorage', error);
+    return [];
+  }
+};
 
 export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState([]);
+  const storageKeyRef = useRef(null);
 
   useEffect(() => {
+    // migrate the old single shared cart into the guest cart, once
     try {
-      const savedCart = localStorage.getItem('bm_cart');
-      if (savedCart) {
-        setCartItems(JSON.parse(savedCart));
+      const legacyCart = localStorage.getItem(LEGACY_CART_KEY);
+      if (legacyCart) {
+        if (!localStorage.getItem(cartKeyFor(null))) {
+          localStorage.setItem(cartKeyFor(null), legacyCart);
+        }
+        localStorage.removeItem(LEGACY_CART_KEY);
       }
     } catch (error) {
-      console.warn('Failed to read cart from localStorage', error);
+      console.warn('Failed to migrate legacy cart', error);
     }
+
+    const loadCartForSession = (session) => {
+      const key = cartKeyFor(session?.user?.id ?? null);
+      storageKeyRef.current = key;
+      setCartItems(loadCart(key));
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      loadCartForSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      loadCartForSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
+    const key = storageKeyRef.current;
+    if (!key) return;
     try {
-      localStorage.setItem('bm_cart', JSON.stringify(cartItems));
+      localStorage.setItem(key, JSON.stringify(cartItems));
     } catch (error) {
       console.warn('Failed to save cart to localStorage', error);
     }
